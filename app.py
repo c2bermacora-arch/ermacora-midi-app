@@ -13,11 +13,7 @@ VERSION="1.0"
 MODE="XY"
 
 [SOURCE]
-TEXT = Die Schöpfung: Siebentagewerk1 Im Anfang schuf Gott den Himmel und die Erde. 2 Und die Erde war wüst und leer, und Finsternis war über der Tiefe; und der Geist Gottes schwebte über dem Wasser. 3 Und Gott sprach: Es werde Licht! Und es wurde Licht. 4 Und Gott sah das Licht, dass es gut war; und Gott schied das Licht von der Finsternis. 5 Und Gott nannte das Licht Tag, und die Finsternis nannte er Nacht. Und es wurde Abend, und es wurde Morgen: ein Tag. 6 Und Gott sprach: Es werde eine Wölbung mitten im Wasser, und es sei eine Scheidung zwischen dem Wasser und dem Wasser! 7 Und Gott machte die Wölbung und schied das Wasser, das unterhalb der Wölbung, von dem Wasser, das oberhalb der Wölbung war. Und es geschah so. 8 Und Gott nannte die Wölbung Himmel. Und es wurde Abend, und es wurde Morgen: ein zweiter Tag. 9 Und Gott sprach: Es soll sich das Wasser unterhalb des Himmels an einen Ort sammeln, und es werde das Trockene sichtbar! Und es geschah so. 10 Und Gott nannte das Trockene Erde, und die Ansammlung des Wassers nannte er Meere. Und Gott sah, dass es gut war. 11 Und Gott sprach: Die Erde lasse Gras hervorsprossen, Kraut, das Samen hervorbringt, Fruchtbäume, die auf der Erde Früchte tragen nach ihrer Art, in denen ihr Same ist! Und es geschah so. 12 Und die Erde brachte Gras hervor, Kraut, das Samen hervorbringt nach seiner Art, und Bäume, die Früchte tragen, in denen ihr Same ist nach ihrer Art. Und Gott sah, dass es gut war. 13 Und es wurde Abend, und es wurde Morgen: ein dritter Tag. 14 Und Gott sprach: Es sollen Lichter an der Wölbung des Himmels werden, um zu scheiden zwischen Tag und Nacht, und sie werden dienen als Zeichen und Zeiten und Tagen und Jahren; 15 und sie werden als Lichter an der Wölbung des Himmels dienen, um auf die Erde zu leuchten! Und es geschah so. 16 Und Gott machte die beiden großen Lichter: das größere Licht zur Beherrschung des Tages und das kleinere Licht zur Beherrschung der Nacht und die Sterne. 17 Und Gott setzte sie an die Wölbung des Himmels, über die Erde zu leuchten 18 und zu herrschen über den Tag und über die Nacht und zwischen dem Licht und der Finsternis zu scheiden. Und Gott sah, dass es gut war. 19 Und es wurde Abend, und es wurde Morgen: ein vierter Tag. 20 Und Gott sprach: Es soll das Wasser vom Gewimmel lebender Wesen wimmeln, und Vögel sollen über der Erde fliegen unter der Wölbung des Himmels! 21 Und Gott schuf die großen Seeungeheuer und alle sich regenden lebenden Wesen, von denen das Wasser wimmelt, nach ihrer Art, und alle geflügelten Vögel, nach ihrer Art. Und Gott sah, dass es gut war. 22 Und Gott segnete sie und sprach: Seid fruchtbar und vermehrt euch, und füllt das Wasser in den Meeren, und die Vögel sollen sich vermehren auf der Erde! 23 Und es wurde Abend, und es wurde Morgen: ein fünfter Tag. 24 Und Gott sprach: Die Erde bringe lebende Wesen hervor nach ihrer Art: Vieh und kriechende Tiere und Tiere der Erde nach ihrer Art! Und es geschah so. 25 Und Gott machte die Tiere der Erde nach ihrer Art und das Vieh nach seiner Art und alle kriechenden Tiere auf dem Erdboden nach ihrer Art. Und Gott sah, dass es gut war. 26 Und Gott sprach: Lasst uns Menschen machen als unser Bild, uns ähnlich! Sie sollen herrschen über die Fische des Meeres und über die Vögel des Himmels und über das Vieh und über die ganze Erde und über alle kriechenden Tiere, die auf der Erde kriechen! 27 Und Gott schuf den Menschen als sein Bild, als Bild Gottes schuf er ihn; als Mann und Frau schuf er sie. 28 Und Gott segnete sie, und Gott sprach zu ihnen: Seid fruchtbar und vermehrt euch, und füllt die Erde, und macht sie untertan; und herrscht über die Fische des Meeres und über die Vögel des Himmels und über alle Tiere, die sich auf der Erde regen! 29 Und Gott sprach: Siehe, gebe ich euch alles Samen tragende Kraut, das auf der Fläche der ganzen Erde ist, und jeden Baum, an dem Samen tragende Baumfrucht ist: es soll euch zur Nahrung dienen; 30 aber allen Tieren der Erde und allen Vögeln des Himmels und allem, was sich auf der Erde regt, in dem eine lebende Seele ist, alles grüne Kraut zur Speise. Und es geschah so. 31 Und Gott sah alles, was er gemacht hatte, und siehe, es war sehr gut. Und es wurde Abend, und es wurde Morgen: der sechste Tag.
-
-[PITCH]
-ALPHABET=C,D,E,F,G,A,H,B
-BASE_OCTAVE=4
+TEXT = Input your source text to generate MIDI sequences via the Ermacodera Scaling algorithm.
 
 [TIMING]
 REST_UNIT=1/16
@@ -312,10 +308,10 @@ if __name__ == "__main__":
 import streamlit as st
 
 st.title("Ermacodera Scale System")
-st.write("Eingabe deiner Quelltexte für Umwandlung zu einer Midi Datei nach dem Ermacodera Scaling.")
+st.write("Enter any source text to transform it into a MIDI file using the Ermacodera Scaling system.")
 
 # Das Text-Eingabefeld
-user_input = st.text_area("Hier Text eingeben:", value=source_text, height=200)
+user_input = st.text_area("any Source text:", value=source_text, height=200)
 
 if st.button("MIDI generieren"):
     # Wir überschreiben die Quelle kurz mit deiner Eingabe
