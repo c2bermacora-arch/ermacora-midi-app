@@ -1,2 +1,3 @@
 streamlit
 mido
+pretty_midi
