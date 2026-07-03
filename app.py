@@ -307,3 +307,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # --- HIER IST DIE BENUTZEROBERFLÄCHE FÜR STREAMLIT ---
+import streamlit as st
+
+st.title("Ermacodera Scale System")
+st.write("Willkommen in der eurythmischen MIDI-Modulationsmatrix.")
+
+if st.button("MIDI generieren & speichern"):
+    # Hier rufen wir die main()-Logik auf
+    main() 
+    st.success("Die MIDI-Datei wurde erfolgreich generiert!")
+    
+    # Den Download-Button anzeigen
+    with open("genesis_modulated.mid", "rb") as f:
+        st.download_button(
+            label="Download MIDI-Datei",
+            data=f,
+            file_name="Ermacodera_Genesis.mid",
+            mime="audio/midi"
+        )
