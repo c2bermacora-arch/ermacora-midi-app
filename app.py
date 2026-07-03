@@ -7,7 +7,7 @@ import re
 # 1. KONFIGURATION & SETUP
 # ==========================================
 config_string = """[HEADER]
-TITLE="Genesis"
+TITLE="Ermacodera Scale System"
 ARTIST="Felix Ermacora"
 VERSION="1.0"
 MODE="XY"
