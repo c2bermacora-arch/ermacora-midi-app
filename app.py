@@ -15,6 +15,10 @@ MODE="XY"
 [SOURCE]
 TEXT = Input your source text to generate MIDI sequences via the Ermacodera Scaling algorithm.
 
+[PITCH]
+ALPHABET=C,D,E,F,G,A,H,B
+BASE_OCTAVE=4
+
 [TIMING]
 REST_UNIT=1/16
 NOTE_DURATION=250
