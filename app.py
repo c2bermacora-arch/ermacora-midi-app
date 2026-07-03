@@ -295,19 +295,25 @@ def main():
     # ==========================================
     # 6. ZUSAMMENFASSUNG AUSGEBEN
     # ==========================================
-    midi_data = pretty_midi.PrettyMIDI(output_filename)
-    print(f"\n--- Datei Info ---")
-    print(f"Datei: {output_filename}")
-    print(f"Dauer: {midi_data.get_end_time():.2f} Sekunden")
-    print(f"Anzahl der Instrumente: {len(midi_data.instruments)}")
+    import time
+    import os
 
-    for i, inst in enumerate(midi_data.instruments):
-        print(f"\nInstrument {i}: {inst.name if inst.name else 'Unnamed'}")
-        print(f" - Noten: {len(inst.notes)}")
-        print(f" - Control Changes (CC): {len(inst.control_changes)}")
+    # Warte kurz, damit die Datei sicher auf der Festplatte landet
+    time.sleep(0.5) 
 
-if __name__ == "__main__":
-    main()
+    if os.path.exists(output_filename):
+        midi_data = pretty_midi.PrettyMIDI(output_filename)
+        print(f"\n--- Datei Info ---")
+        print(f"Datei: {output_filename}")
+        print(f"Dauer: {midi_data.get_end_time():.2f} Sekunden")
+        print(f"Anzahl der Instrumente: {len(midi_data.instruments)}")
+
+        for i, inst in enumerate(midi_data.instruments):
+            print(f"\nInstrument {i}: {inst.name if inst.name else 'Unnamed'}")
+            print(f" - Noten: {len(inst.notes)}")
+            print(f" - Control Changes (CC): {len(inst.control_changes)}")
+    else:
+        print("Fehler: MIDI-Datei konnte nicht gefunden werden.")
     # --- HIER IST DIE BENUTZEROBERFLÄCHE FÜR STREAMLIT ---
 import streamlit as st
 
