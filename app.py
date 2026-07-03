@@ -170,6 +170,7 @@ class ErmacoderaScaleGenerator:
 # 4. PREPROCESSING & ANALYSE
 # ==========================================
 def main():
+    global source_text
     print("--- Start Processing ---")
     
     word_analysis = {} 
@@ -311,11 +312,18 @@ if __name__ == "__main__":
 import streamlit as st
 
 st.title("Ermacodera Scale System")
-st.write("Willkommen in der eurythmischen MIDI-Modulationsmatrix.")
+st.write("Eingabe deiner Quelltexte für Umwandlung zu einer Midi Datei nach dem Ermacodera Scaling.")
 
-if st.button("MIDI generieren & speichern"):
-    # Hier rufen wir die main()-Logik auf
+# Das Text-Eingabefeld
+user_input = st.text_area("Hier Text eingeben:", value=source_text, height=200)
+
+if st.button("MIDI generieren"):
+    # Wir überschreiben die Quelle kurz mit deiner Eingabe
+    source_text = user_input
+    
+    # Hier rufen wir die Logik auf
     main() 
+    
     st.success("Die MIDI-Datei wurde erfolgreich generiert!")
     
     # Den Download-Button anzeigen
@@ -323,6 +331,6 @@ if st.button("MIDI generieren & speichern"):
         st.download_button(
             label="Download MIDI-Datei",
             data=f,
-            file_name="Ermacodera_Genesis.mid",
+            file_name="Ermacodera_System_Output.mid",
             mime="audio/midi"
         )
