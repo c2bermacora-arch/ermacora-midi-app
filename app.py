@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 
 # =====================================================================
-# INTERNER ENGINE-CODE (UNVERÄNDERT)
+# INTERNER ENGINE-CODE
 # =====================================================================
 class ETSCS_Total_System:
     """
@@ -25,7 +25,6 @@ class ETSCS_Total_System:
         inst = pretty_midi.Instrument(program=19) # Church Organ
         current_time = 0.0
 
-        # Global States
         tempo_mult = 1.0
         sentence_octave_offset = 0
         dec_active = False
@@ -33,16 +32,13 @@ class ETSCS_Total_System:
         dec_vals = [90, 70, 50, 30]
         sustain_active = False
 
-        # I. Paragraph Split (Two or more newlines)
         paragraphs = re.split(r'\n{2,}', self.text)
 
         for paragraph in paragraphs:
-            # Paragraph Reset
             tempo_mult = 1.0
             sentence_octave_offset = 0
-            current_time += (self.std_duration * 0.25) * 3 # Paragraph Pause
+            current_time += (self.std_duration * 0.25) * 3 
 
-            # II. Sentence Processing
             sentences = re.split(r'([.!?]+)', paragraph)
             sentence_parts = []
             for i in range(0, len(sentences)-1, 2):
@@ -51,7 +47,6 @@ class ETSCS_Total_System:
                 sentence_parts.append(sentences[-1])
 
             for sentence in sentence_parts:
-                # III. Sentence Punctuation Octave Rules
                 if '!!!' in sentence or '???' in sentence: sentence_octave_offset = 0
                 elif '!!' in sentence: sentence_octave_offset = 2
                 elif '!' in sentence: sentence_octave_offset = 1
@@ -68,7 +63,6 @@ class ETSCS_Total_System:
                     is_first_word = (w_idx == 0)
                     is_last_word = (w_idx == len(words) - 1)
 
-                    # IV. Dynamic Duration & Word Length Articulation
                     non_musical = [c for c in clean_w if c.upper() not in self.musical_alphabet_list]
                     word_base_dur = self.std_duration + (len(non_musical) * 0.050)
 
@@ -78,7 +72,6 @@ class ETSCS_Total_System:
                     last_pitch, consecutive = None, 0
 
                     for c_idx, char in enumerate(word):
-                        # V. Tempo and Sustain Control
                         if char == ',': tempo_mult = 0.5 if tempo_mult == 1.0 else 1.0
                         elif char == '.': tempo_mult = 1.0
                         elif char == ':': tempo_mult *= 2.0
@@ -91,7 +84,6 @@ class ETSCS_Total_System:
                             inst.control_changes.append(pretty_midi.ControlChange(64, 0, current_time))
                             sustain_active = False
 
-                        # VI. Decrescendo Trigger (Double Letters)
                         if c_idx > 0 and char.isalpha() and char.lower() == word[c_idx-1].lower():
                             dec_active = True
                             dec_step = 0
@@ -100,7 +92,6 @@ class ETSCS_Total_System:
                         if upper_c in self.alphabet:
                             pitch = (self.base_octave + sentence_octave_offset + word_oct_shift + 1) * 12 + self.alphabet[upper_c]
 
-                            # VII. Crescendo / Harmonics logic
                             consecutive = (consecutive + 1) if pitch == last_pitch else 1
                             velocity = {1:70, 2:90, 3:110}.get(consecutive, 127)
 
@@ -114,7 +105,6 @@ class ETSCS_Total_System:
                             eff_dur = word_base_dur * tempo_mult * staccato
                             if is_last_word and c_idx == len(word)-1: eff_dur *= 1.4
 
-                            # VIII. Capitalization Doubling / Layering
                             reps = 2 if char.isupper() else 1
                             for r in range(reps):
                                 v = min(127, velocity + (20 if r > 0 else 0))
@@ -126,7 +116,7 @@ class ETSCS_Total_System:
                                     inst.notes.append(pretty_midi.Note(v, pitch + 4, current_time, current_time + eff_dur))
                                     inst.notes.append(pretty_midi.Note(v, pitch + 7, current_time, current_time + eff_dur))
 
-                                if c_idx == len(word)-1: # Word-end High Octave
+                                if c_idx == len(word)-1: 
                                     inst.notes.append(pretty_midi.Note(v, pitch + 12, current_time, current_time + eff_dur))
 
                                 current_time += eff_dur
@@ -146,12 +136,10 @@ st.set_page_config(page_title="Felix Ermacora Codera Scale System", layout="wide
 st.title("Felix Ermacora: Codera Scale System")
 st.write("Transformiert linguistische Strukturen basierend auf eurythmischen Gesetzmäßigkeiten in polyphone MIDI-Daten.")
 
-# Sidebar Controls
 st.sidebar.header("System Parameter")
 base_octave = st.sidebar.slider("Basis-Oktave", min_value=1, max_value=7, value=4)
 note_duration = st.sidebar.slider("Standard Notendauer (Sekunden)", min_value=0.05, max_value=1.0, value=0.25, step=0.01)
 
-# Text Input Matrix
 default_text = "Die Schöpfung: Siebentagewerk. \n\nIm Anfang schuf Gott den Himmel und die Erde. Licht!"
 user_input = st.text_area("Eingabetext für die generative Synthese:", value=default_text, height=180)
 
@@ -159,7 +147,6 @@ if st.button("MIDI-Struktur generieren & analysieren", type="primary"):
     if user_input.strip() == "":
         st.warning("Bitte gib zuerst einen Text ein.")
     else:
-        # Prozess starten
         system = ETSCS_Total_System(user_input, base_octave=base_octave, note_duration=note_duration)
         midi_data = system.process()
         
@@ -168,28 +155,24 @@ if st.button("MIDI-Struktur generieren & analysieren", type="primary"):
         
         st.success("MIDI-Architektur erfolgreich berechnet!")
         
-        # --- DOWNLOAD & AUDIO PREVIEW ---
-        col1, col2 = st.columns(2)
-        with col1:
-            with open(filename, "rb") as f:
-                st.download_button(
-                    label="📥 Download MIDI-Datei",
-                    data=f,
-                    file_name=filename,
-                    mime="audio/midi",
-                    use_container_width=True
-                )
-        with col2:
-            st.audio(filename, format="audio/midi")
-            st.caption("Hinweis: Native Browser-Midi-Wiedergabe ist plattformabhängig.")
+        # --- DOWNLOAD BEREICH ---
+        with open(filename, "rb") as f:
+            st.download_button(
+                label="📥 Download MIDI-Datei",
+                data=f,
+                file_name=filename,
+                mime="audio/midi",
+                use_container_width=True
+            )
+            
+        st.info("🎵 **Hinweis zur Wiedergabe:** Webbrowser können rohe MIDI-Dateien leider nicht direkt abspielen. Bitte lade die MIDI-Datei herunter und lade sie in deine DAW (z.B. Ableton Live oder AUM auf dem iPad), um sie mit deinen eigenen Synthesizern wiederzugeben.")
             
         # =====================================================================
-        # VISUALISIERUNG: Interaktives MIDI Piano Roll & Frequenz-Mapping
+        # VISUALISIERUNG: Interaktives MIDI Piano Roll
         # =====================================================================
         st.write("---")
         st.subheader("📊 Strukturelle Visualisierung (Linguistisches Frequenz-Muster)")
         
-        # Datenextraktion aus dem generierten MIDI Objekt
         notes_list = []
         for instrument in midi_data.instruments:
             for note in instrument.notes:
@@ -204,11 +187,8 @@ if st.button("MIDI-Struktur generieren & analysieren", type="primary"):
         
         if notes_list:
             df = pd.DataFrame(notes_list)
-            
-            # Sortieren nach Pitch für saubere Y-Achse
             df = df.sort_values(by="Midi Pitch")
             
-            # Interaktives Plotly Gantt/Piano-Roll Chart bauen
             fig = px.bar(
                 df,
                 x="Dauer (s)",
@@ -221,12 +201,12 @@ if st.button("MIDI-Struktur generieren & analysieren", type="primary"):
                 title="ETSCS Klang-Timeline (Piano Roll)",
             )
             
-            # Layout-Feinschliff für optimale Lesbarkeit im Studio-Kontext
+            # Ausfallsichere Layout-Syntax!
             fig.update_layout(
                 height=500,
                 xaxis_title="Zeitverlauf (Sekunden)",
                 yaxis_title="Tonhöhe (Note)",
-                coloraster_title="Velocity",
+                coloraxis=dict(colorbar=dict(title="Velocity")),
                 yaxis={'categoryorder': 'array', 'categoryarray': df['Note'].unique()},
                 plot_bgcolor="rgba(20,20,20,0.05)",
                 margin=dict(l=50, r=50, t=50, b=50)
@@ -234,7 +214,6 @@ if st.button("MIDI-Struktur generieren & analysieren", type="primary"):
             
             st.plotly_chart(fig, use_container_width=True)
             
-            # Statistische Metriken zur visuellen Untermauerung
             m_col1, m_col2, m_col3 = st.columns(3)
             m_col1.metric("Generierte Noten (Events)", len(df))
             m_col2.metric("Gesamtdauer des Stücks", f"{midi_data.get_end_time():.2f} Sek.")
