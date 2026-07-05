@@ -1,342 +1,244 @@
-import configparser
-import pretty_midi
-import json
-import re
-
-# ==========================================
-# 1. KONFIGURATION & SETUP
-# ==========================================
-config_string = """[HEADER]
-TITLE="Ermacodera Scale System"
-ARTIST="Felix Ermacora"
-VERSION="1.0"
-MODE="XY"
-
-[SOURCE]
-TEXT = Input your source text to generate MIDI sequences via the Ermacodera Scaling algorithm.
-
-[PITCH]
-ALPHABET=C,D,E,F,G,A,H,B
-BASE_OCTAVE=4
-
-[TIMING]
-REST_UNIT=1/16
-NOTE_DURATION=250
-REMOVED_CHAR_WEIGHT=50
-
-[ARTICULATION]
-SHORT_WORD_MAX_LENGTH=3
-LONG_WORD_MIN_LENGTH=7
-STACCATO_FACTOR=0.75"""
-
-config = configparser.ConfigParser()
-config.read_string(config_string)
-
-# Variablen aus der Config extrahieren
-source_text = config['SOURCE']['text']
-alphabet_str = config['PITCH']['alphabet']
-musical_alphabet = [char.strip().upper() for char in alphabet_str.split(',')]
-base_octave = int(config['PITCH']['base_octave'])
-
-note_base_duration_sec = int(config['TIMING']['note_duration']) / 1000.0
-removed_char_weight_sec = int(config['TIMING']['removed_char_weight']) / 1000.0
-
-def parse_rest_unit(rest_unit_str, base_duration_sec):
-    try:
-        numerator, denominator = map(int, rest_unit_str.split('/'))
-        return (numerator / denominator) * base_duration_sec * 4 
-    except ValueError:
-        print(f"Warning: Could not parse REST_UNIT '{rest_unit_str}'. Using default of (1/4) * base_duration_sec.")
-        return (1/4) * base_duration_sec
-
-rest_unit_duration_sec = parse_rest_unit(config['TIMING']['rest_unit'], note_base_duration_sec)
-
-short_word_max_length = int(config['ARTICULATION']['short_word_max_length'])
-long_word_min_length = int(config['ARTICULATION']['long_word_min_length'])
-staccato_factor = float(config['ARTICULATION']['staccato_factor'])
-
-
-# ==========================================
-# 2. HILFSFUNKTIONEN
-# ==========================================
-letter_to_midi_offset = {
-    'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'H': 11, 'B': 11
-}
-
-def get_midi_pitch(letter, octave):
-    """Berechnet den MIDI-Pitch. C4 = 60."""
-    if letter.upper() in letter_to_midi_offset:
-        # Formel: (Octave + 1) * 12 + Offset
-        # C4 -> (4 + 1) * 12 + 0 = 60
-        return (octave + 1) * 12 + letter_to_midi_offset[letter.upper()]
-    return None
-
-
-# ==========================================
-# 3. ERMACODERA SCALE GENERATOR
-# ==========================================
-class ErmacoderaScaleGenerator:
-    def __init__(self):
-        # 1. Das eurythmische Mapping für Vokale
-        self.eurythmy_vowels = {
-            'a': {"space_width": 1.0, "freq_shift": 1.5, "character": "open"},     # Weite / Offenheit
-            'e': {"space_width": 0.2, "freq_shift": 0.8, "character": "dense"},    # Widerstand / Kompression
-            'i': {"space_width": 0.0, "freq_shift": 2.0, "character": "focused"},  # Vertikalität / Strahlend
-            'o': {"space_width": 0.6, "freq_shift": 0.7, "character": "warm"},     # Umfassung / Rund
-            'u': {"space_width": 0.1, "freq_shift": 0.3, "character": "deep"}      # Tiefe / Erstarrung
-        }
-
-        # 2. Das eurythmische Mapping für Konsonanten
-        self.eurythmy_consonants = {
-            'h': {"mod_type": "noise", "mod_intensity": 0.8},       # Hauch / Rauschen
-            'b': {"mod_type": "gate", "mod_intensity": 0.9},        # Umhüllung / Grenze
-            'p': {"mod_type": "gate", "mod_intensity": 1.0},        # Umhüllung / Grenze
-            'l': {"mod_type": "fluid", "mod_intensity": 0.7},       # Flüssig / Chorus-artig
-            'r': {"mod_type": "granular", "mod_intensity": 0.85},   # Rollend / Wirbel
-            's': {"mod_type": "distortion", "mod_intensity": 0.75}  # Trennend / Scharf
-        }
-
-    def analyze_text(self, text):
-        dataset = []
-        current_octave_shift = 0   
-        current_base_mode = "Normal"  
-        clean_text = text.strip()
-
-        for i, char in enumerate(clean_text):
-            step_data = {
-                "char": char,
-                "index": i,
-                "octave_shift": current_octave_shift,
-                "base_mode": current_base_mode,
-                "space_width": 0.5,        
-                "freq_shift": 1.0,         
-                "character": "neutral",
-                "mod_type": "none",
-                "mod_intensity": 0.0,
-                "transient_sharpness": 0.5,
-                "is_double_operator": False
-            }
-
-            # --- REGEL 1: Großbuchstaben als Zustands-Trigger ---
-            if char.isupper() and char.isalpha():
-                current_base_mode = f"Shift_{char}"
-                step_data["base_mode"] = current_base_mode
-                step_data["transient_sharpness"] = 0.9
-
-            # --- REGEL 2: Satzzeichen als progressive Zähler & Resets ---
-            elif char == '?':
-                current_octave_shift += 1
-                if current_octave_shift > 2:  
-                    current_octave_shift = 0
-                step_data["octave_shift"] = current_octave_shift
-
-            elif char == '!':
-                current_octave_shift -= 1
-                if current_octave_shift < -2: 
-                    current_octave_shift = 0
-                step_data["octave_shift"] = current_octave_shift
-
-            # --- REGEL 3: Doppelbuchstaben als Operatoren ---
-            if i > 0 and char.lower() == clean_text[i-1].lower() and char.isalpha():
-                step_data["is_double_operator"] = True
-                step_data["transient_sharpness"] = 0.1
-
-            # --- REGEL 4: Eurythmische Matrix-Zuweisung ---
-            lower_char = char.lower()
-
-            if lower_char in self.eurythmy_vowels:
-                vowel_rules = self.eurythmy_vowels[lower_char]
-                step_data["space_width"] = vowel_rules["space_width"]
-                step_data["freq_shift"] = vowel_rules["freq_shift"]
-                step_data["character"] = vowel_rules["character"]
-
-            elif lower_char in self.eurythmy_consonants:
-                consonant_rules = self.eurythmy_consonants[lower_char]
-                step_data["mod_type"] = consonant_rules["mod_type"]
-                step_data["mod_intensity"] = consonant_rules["mod_intensity"]
-
-                if consonant_rules["mod_type"] == "gate":
-                    step_data["space_width"] = 0.1
-
-            elif char.isalpha():
-                step_data["character"] = "percussive_pass"
-
-            dataset.append(step_data)
-
-        return dataset
-
-
-# ==========================================
-# 4. PREPROCESSING & ANALYSE
-# ==========================================
-def main():
-    global source_text
-    print("--- Start Processing ---")
-    
-    word_analysis = {} 
-    current_word_start_idx = -1
-    non_musical_letters_count = 0
-    total_alpha_count_in_word = 0
-
-    for i, char_in_text in enumerate(source_text):
-        if char_in_text.isalpha():
-            if current_word_start_idx == -1:
-                current_word_start_idx = i
-            total_alpha_count_in_word += 1
-            if char_in_text.upper() not in musical_alphabet:
-                non_musical_letters_count += 1
-        else:
-            if current_word_start_idx != -1:
-                word_analysis[(current_word_start_idx, i - 1)] = {
-                    'non_musical_count': non_musical_letters_count,
-                    'total_alpha_count': total_alpha_count_in_word
-                }
-                current_word_start_idx = -1
-                non_musical_letters_count = 0
-                total_alpha_count_in_word = 0
-
-    if current_word_start_idx != -1:
-        word_analysis[(current_word_start_idx, len(source_text) - 1)] = {
-            'non_musical_count': non_musical_letters_count,
-            'total_alpha_count': total_alpha_count_in_word
-        }
-
-    generator = ErmacoderaScaleGenerator()
-    eurythmy_data_list = generator.analyze_text(source_text)
-
-
-    # ==========================================
-    # 5. MIDI GENERIERUNG MIT CC MODULATIONEN
-    # ==========================================
-    CC_SPACE_WIDTH = 20
-    CC_FREQ_SHIFT = 21
-    CC_MOD_INTENSITY = 22
-
-    midi_cc = pretty_midi.PrettyMIDI()
-    instrument = pretty_midi.Instrument(program=0)
-    current_time = 0.0
-    last_pitch = None
-    consecutive_count = 0
-
-    for i, eurythmy_entry in enumerate(eurythmy_data_list):
-        char = eurythmy_entry['char']
-
-        # Zeit-Reset bei Satzzeichen 
-        if char in ['?', '!']:
-            current_time += rest_unit_duration_sec
-            continue
-
-        # Wort-Kontext abrufen
-        current_word_info = next((info for (w_start, w_end), info in word_analysis.items() if w_start <= i <= w_end), None)
-
-        dynamic_duration = note_base_duration_sec
-        current_octave_modifier = 0
-        current_duration_factor = 1.0
-
-        if current_word_info:
-            dynamic_duration += (current_word_info['non_musical_count'] * removed_char_weight_sec)
-            if current_word_info['total_alpha_count'] <= short_word_max_length:
-                current_duration_factor = staccato_factor
-            elif current_word_info['total_alpha_count'] >= long_word_min_length:
-                current_octave_modifier = 1
-
-        upper_char = char.upper()
-        if upper_char in musical_alphabet:
-            total_shift = eurythmy_entry['octave_shift'] + current_octave_modifier
-            midi_pitch = get_midi_pitch(upper_char, base_octave + total_shift)
-
-            if midi_pitch is not None:
-                # CC Nachrichten VOR der Note einfügen
-                instrument.control_changes.append(pretty_midi.ControlChange(CC_SPACE_WIDTH, int(eurythmy_entry['space_width'] * 127), current_time))
-                instrument.control_changes.append(pretty_midi.ControlChange(CC_FREQ_SHIFT, int(min(eurythmy_entry['freq_shift'] / 2.0, 1.0) * 127), current_time))
-                instrument.control_changes.append(pretty_midi.ControlChange(CC_MOD_INTENSITY, int(eurythmy_entry['mod_intensity'] * 127), current_time))
-
-                # Velocity & Crescendo Logik
-                if midi_pitch == last_pitch: 
-                    consecutive_count += 1
-                else: 
-                    consecutive_count = 1
-                
-                last_pitch = midi_pitch
-
-                vel = 70
-                if consecutive_count == 2: 
-                    vel = 95
-                elif consecutive_count >= 3: 
-                    vel = 115
-
-                final_dur = dynamic_duration * current_duration_factor
-
-                # Note hinzufügen
-                note = pretty_midi.Note(velocity=vel, pitch=midi_pitch, start=current_time, end=current_time + final_dur)
-                instrument.notes.append(note)
-
-                # Quinten-Schichtung
-                if consecutive_count == 2:
-                    instrument.notes.append(pretty_midi.Note(velocity=vel, pitch=midi_pitch + 7, start=current_time, end=current_time + final_dur))
-
-                current_time += final_dur
-
-                # Verdopplung bei Großbuchstaben
-                if char.isupper():
-                    current_time += 0.01 # Minimaler Gap
-                    instrument.notes.append(pretty_midi.Note(velocity=min(vel + 20, 127), pitch=midi_pitch, start=current_time, end=current_time + final_dur))
-                    current_time += final_dur
-        else:
-            current_time += rest_unit_duration_sec
-            last_pitch = None
-
-    midi_cc.instruments.append(instrument)
-    output_filename = 'genesis_modulated.mid'
-    midi_cc.write(output_filename)
-    
-    print(f"Erfolgreich generiert: {output_filename} mit CC-Modulationen.")
-
-    # ==========================================
-    # 6. ZUSAMMENFASSUNG AUSGEBEN
-    # ==========================================
-    import time
-    import os
-
-    # Warte kurz, damit die Datei sicher auf der Festplatte landet
-    time.sleep(0.5) 
-
-    if os.path.exists(output_filename):
-        midi_data = pretty_midi.PrettyMIDI(output_filename)
-        print(f"\n--- Datei Info ---")
-        print(f"Datei: {output_filename}")
-        print(f"Dauer: {midi_data.get_end_time():.2f} Sekunden")
-        print(f"Anzahl der Instrumente: {len(midi_data.instruments)}")
-
-        for i, inst in enumerate(midi_data.instruments):
-            print(f"\nInstrument {i}: {inst.name if inst.name else 'Unnamed'}")
-            print(f" - Noten: {len(inst.notes)}")
-            print(f" - Control Changes (CC): {len(inst.control_changes)}")
-    else:
-        print("Fehler: MIDI-Datei konnte nicht gefunden werden.")
-    # --- HIER IST DIE BENUTZEROBERFLÄCHE FÜR STREAMLIT ---
 import streamlit as st
+import pretty_midi
+import re
+import os
+import pandas as pd
+import plotly.express as px
 
-st.title("Ermacodera Scale System")
-st.write("Enter any source text to transform it into a MIDI file using the Ermacodera Scaling system.")
+# =====================================================================
+# INTERNER ENGINE-CODE (UNVERÄNDERT)
+# =====================================================================
+class ETSCS_Total_System:
+    """
+    Ermacora-Codera Total System (ETSCS)
+    A text-to-MIDI translation engine based on eurythmic musical rules.
+    """
+    def __init__(self, text, base_octave=4, note_duration=0.250):
+        self.text = text
+        self.base_octave = base_octave
+        self.std_duration = note_duration
+        self.alphabet = {'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'H':11,'B':11}
+        self.musical_alphabet_list = list(self.alphabet.keys())
 
-# Das Text-Eingabefeld
-user_input = st.text_area("any Source text:", value=source_text, height=200)
+    def process(self):
+        midi = pretty_midi.PrettyMIDI()
+        inst = pretty_midi.Instrument(program=19) # Church Organ
+        current_time = 0.0
 
-if st.button("MIDI generieren"):
-    # Wir überschreiben die Quelle kurz mit deiner Eingabe
-    source_text = user_input
-    
-    # Hier rufen wir die Logik auf
-    main() 
-    
-    st.success("Die MIDI-Datei wurde erfolgreich generiert!")
-    
-    # Den Download-Button anzeigen
-    with open("genesis_modulated.mid", "rb") as f:
-        st.download_button(
-            label="Download MIDI-Datei",
-            data=f,
-            file_name="Ermacodera_System_Output.mid",
-            mime="audio/midi"
-        )
+        # Global States
+        tempo_mult = 1.0
+        sentence_octave_offset = 0
+        dec_active = False
+        dec_step = 0
+        dec_vals = [90, 70, 50, 30]
+        sustain_active = False
+
+        # I. Paragraph Split (Two or more newlines)
+        paragraphs = re.split(r'\n{2,}', self.text)
+
+        for paragraph in paragraphs:
+            # Paragraph Reset
+            tempo_mult = 1.0
+            sentence_octave_offset = 0
+            current_time += (self.std_duration * 0.25) * 3 # Paragraph Pause
+
+            # II. Sentence Processing
+            sentences = re.split(r'([.!?]+)', paragraph)
+            sentence_parts = []
+            for i in range(0, len(sentences)-1, 2):
+                sentence_parts.append(sentences[i] + sentences[i+1])
+            if len(sentences) % 2 != 0:
+                sentence_parts.append(sentences[-1])
+
+            for sentence in sentence_parts:
+                # III. Sentence Punctuation Octave Rules
+                if '!!!' in sentence or '???' in sentence: sentence_octave_offset = 0
+                elif '!!' in sentence: sentence_octave_offset = 2
+                elif '!' in sentence: sentence_octave_offset = 1
+                elif '??' in sentence: sentence_octave_offset = -2
+                elif '?' in sentence: sentence_octave_offset = -1
+
+                words = sentence.split()
+                for w_idx, word in enumerate(words):
+                    clean_w = re.sub(r'[^a-zA-ZäöüÄÖÜß]', '', word)
+                    if not clean_w and not any(c in word for c in ',.:;'):
+                        current_time += (self.std_duration * 0.25)
+                        continue
+
+                    is_first_word = (w_idx == 0)
+                    is_last_word = (w_idx == len(words) - 1)
+
+                    # IV. Dynamic Duration & Word Length Articulation
+                    non_musical = [c for c in clean_w if c.upper() not in self.musical_alphabet_list]
+                    word_base_dur = self.std_duration + (len(non_musical) * 0.050)
+
+                    word_oct_shift = 1 if len(clean_w) >= 9 else 0
+                    staccato = 0.4 if 0 < len(clean_w) < 3 else 1.0
+
+                    last_pitch, consecutive = None, 0
+
+                    for c_idx, char in enumerate(word):
+                        # V. Tempo and Sustain Control
+                        if char == ',': tempo_mult = 0.5 if tempo_mult == 1.0 else 1.0
+                        elif char == '.': tempo_mult = 1.0
+                        elif char == ':': tempo_mult *= 2.0
+                        elif char == ';': current_time += (self.std_duration * 0.5)
+
+                        if '...' in word and not sustain_active:
+                            inst.control_changes.append(pretty_midi.ControlChange(64, 127, current_time))
+                            sustain_active = True
+                        elif sustain_active and '.' in char:
+                            inst.control_changes.append(pretty_midi.ControlChange(64, 0, current_time))
+                            sustain_active = False
+
+                        # VI. Decrescendo Trigger (Double Letters)
+                        if c_idx > 0 and char.isalpha() and char.lower() == word[c_idx-1].lower():
+                            dec_active = True
+                            dec_step = 0
+
+                        upper_c = char.upper()
+                        if upper_c in self.alphabet:
+                            pitch = (self.base_octave + sentence_octave_offset + word_oct_shift + 1) * 12 + self.alphabet[upper_c]
+
+                            # VII. Crescendo / Harmonics logic
+                            consecutive = (consecutive + 1) if pitch == last_pitch else 1
+                            velocity = {1:70, 2:90, 3:110}.get(consecutive, 127)
+
+                            if dec_active:
+                                velocity = dec_vals[dec_step]
+                                dec_step = min(dec_step + 1, len(dec_vals)-1)
+                                if dec_step == len(dec_vals)-1: dec_active = False
+
+                            if is_first_word: velocity = min(127, velocity + 15)
+
+                            eff_dur = word_base_dur * tempo_mult * staccato
+                            if is_last_word and c_idx == len(word)-1: eff_dur *= 1.4
+
+                            # VIII. Capitalization Doubling / Layering
+                            reps = 2 if char.isupper() else 1
+                            for r in range(reps):
+                                v = min(127, velocity + (20 if r > 0 else 0))
+                                inst.notes.append(pretty_midi.Note(v, pitch, current_time, current_time + eff_dur))
+
+                                if consecutive == 2:
+                                    inst.notes.append(pretty_midi.Note(v, pitch + 7, current_time, current_time + eff_dur))
+                                elif consecutive >= 3:
+                                    inst.notes.append(pretty_midi.Note(v, pitch + 4, current_time, current_time + eff_dur))
+                                    inst.notes.append(pretty_midi.Note(v, pitch + 7, current_time, current_time + eff_dur))
+
+                                if c_idx == len(word)-1: # Word-end High Octave
+                                    inst.notes.append(pretty_midi.Note(v, pitch + 12, current_time, current_time + eff_dur))
+
+                                current_time += eff_dur
+                            last_pitch = pitch
+                        else:
+                            current_time += (self.std_duration * 0.25)
+
+        midi.instruments.append(inst)
+        return midi
+
+# =====================================================================
+# STREAMLIT UI & ADEQUATE VISUALISIERUNG
+# =====================================================================
+
+st.set_page_config(page_title="Felix Ermacora Codera Scale System", layout="wide")
+
+st.title("Felix Ermacora: Codera Scale System")
+st.write("Transformiert linguistische Strukturen basierend auf eurythmischen Gesetzmäßigkeiten in polyphone MIDI-Daten.")
+
+# Sidebar Controls
+st.sidebar.header("System Parameter")
+base_octave = st.sidebar.slider("Basis-Oktave", min_value=1, max_value=7, value=4)
+note_duration = st.sidebar.slider("Standard Notendauer (Sekunden)", min_value=0.05, max_value=1.0, value=0.25, step=0.01)
+
+# Text Input Matrix
+default_text = "Die Schöpfung: Siebentagewerk. \n\nIm Anfang schuf Gott den Himmel und die Erde. Licht!"
+user_input = st.text_area("Eingabetext für die generative Synthese:", value=default_text, height=180)
+
+if st.button("MIDI-Struktur generieren & analysieren", type="primary"):
+    if user_input.strip() == "":
+        st.warning("Bitte gib zuerst einen Text ein.")
+    else:
+        # Prozess starten
+        system = ETSCS_Total_System(user_input, base_octave=base_octave, note_duration=note_duration)
+        midi_data = system.process()
+        
+        filename = "Felix_Ermacora_Output.mid"
+        midi_data.write(filename)
+        
+        st.success("MIDI-Architektur erfolgreich berechnet!")
+        
+        # --- DOWNLOAD & AUDIO PREVIEW ---
+        col1, col2 = st.columns(2)
+        with col1:
+            with open(filename, "rb") as f:
+                st.download_button(
+                    label="📥 Download MIDI-Datei",
+                    data=f,
+                    file_name=filename,
+                    mime="audio/midi",
+                    use_container_width=True
+                )
+        with col2:
+            st.audio(filename, format="audio/midi")
+            st.caption("Hinweis: Native Browser-Midi-Wiedergabe ist plattformabhängig.")
+            
+        # =====================================================================
+        # VISUALISIERUNG: Interaktives MIDI Piano Roll & Frequenz-Mapping
+        # =====================================================================
+        st.write("---")
+        st.subheader("📊 Strukturelle Visualisierung (Linguistisches Frequenz-Muster)")
+        
+        # Datenextraktion aus dem generierten MIDI Objekt
+        notes_list = []
+        for instrument in midi_data.instruments:
+            for note in instrument.notes:
+                notes_list.append({
+                    "Note": pretty_midi.note_number_to_name(note.pitch),
+                    "Midi Pitch": note.pitch,
+                    "Startzeit (s)": note.start,
+                    "Endzeit (s)": note.end,
+                    "Dauer (s)": note.end - note.start,
+                    "Anschlagsdynamik (Velocity)": note.velocity
+                })
+        
+        if notes_list:
+            df = pd.DataFrame(notes_list)
+            
+            # Sortieren nach Pitch für saubere Y-Achse
+            df = df.sort_values(by="Midi Pitch")
+            
+            # Interaktives Plotly Gantt/Piano-Roll Chart bauen
+            fig = px.bar(
+                df,
+                x="Dauer (s)",
+                y="Note",
+                base="Startzeit (s)",
+                orientation="h",
+                color="Anschlagsdynamik (Velocity)",
+                color_continuous_scale="Viridis",
+                hover_data=["Midi Pitch", "Startzeit (s)", "Endzeit (s)"],
+                title="ETSCS Klang-Timeline (Piano Roll)",
+            )
+            
+            # Layout-Feinschliff für optimale Lesbarkeit im Studio-Kontext
+            fig.update_layout(
+                height=500,
+                xaxis_title="Zeitverlauf (Sekunden)",
+                yaxis_title="Tonhöhe (Note)",
+                coloraster_title="Velocity",
+                yaxis={'categoryorder': 'array', 'categoryarray': df['Note'].unique()},
+                plot_bgcolor="rgba(20,20,20,0.05)",
+                margin=dict(l=50, r=50, t=50, b=50)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Statistische Metriken zur visuellen Untermauerung
+            m_col1, m_col2, m_col3 = st.columns(3)
+            m_col1.metric("Generierte Noten (Events)", len(df))
+            m_col2.metric("Gesamtdauer des Stücks", f"{midi_data.get_end_time():.2f} Sek.")
+            m_col3.metric("Genutzter Tonumfang", f"{df['Note'].nunique()} verschiedene Töne")
+            
+        else:
+            st.info("Der Text enthielt keine musikalisch verwertbaren Zeichen aus dem definierten Alphabet.")
