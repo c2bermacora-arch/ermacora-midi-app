@@ -133,7 +133,7 @@ class ETSCS_Total_System:
 
 st.markdown("<h1 style='text-align: left;'>E-CODERA SYSTEM<br><span style='font-size: 20px; font-weight: normal;'>Developed by Felix Ermacora</span></h1>", unsafe_allow_html=True)
 
-st.title("E Codera System")
+st.title("A SYSTEM That")
 st.write("Converts linguistic structures into polyphonic MIDI data using algorithmic modeling.")
 
 st.sidebar.header("System Parameters")
@@ -179,10 +179,10 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
                 notes_list.append({
                     "Note": pretty_midi.note_number_to_name(note.pitch),
                     "Midi Pitch": note.pitch,
-                    "Startzeit (s)": note.start,
-                    "Endzeit (s)": note.end,
-                    "Dauer (s)": note.end - note.start,
-                    "Anschlagsdynamik (Velocity)": note.velocity
+                    "Start (s)": note.start,
+                    "End (s)": note.end,
+                    "Duration (s)": note.end - note.start,
+                    "Velocity": note.velocity
                 })
         
         if notes_list:
@@ -191,21 +191,21 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
             
             fig = px.bar(
                 df,
-                x="Dauer (s)",
+                x="Time (s)",
                 y="Note",
-                base="Startzeit (s)",
+                base="Start (s)",
                 orientation="h",
-                color="Anschlagsdynamik (Velocity)",
+                color="Velocity",
                 color_continuous_scale="Viridis",
-                hover_data=["Midi Pitch", "Startzeit (s)", "Endzeit (s)"],
-                title="ETSCS Klang-Timeline (Piano Roll)",
+                hover_data=["Midi Pitch", "Start (s)", "End (s)"],
+                title="Sound-Timeline (Piano Roll)",
             )
             
             # Ausfallsichere Layout-Syntax!
             fig.update_layout(
                 height=500,
-                xaxis_title="Zeitverlauf (Sekunden)",
-                yaxis_title="Tonhöhe (Note)",
+                xaxis_title="Timeline (seconds)",
+                yaxis_title="Pitch (Note)",
                 coloraxis=dict(colorbar=dict(title="Velocity")),
                 yaxis={'categoryorder': 'array', 'categoryarray': df['Note'].unique()},
                 plot_bgcolor="rgba(20,20,20,0.05)",
@@ -215,9 +215,9 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
             st.plotly_chart(fig, use_container_width=True)
             
             m_col1, m_col2, m_col3 = st.columns(3)
-            m_col1.metric("Generierte Noten (Events)", len(df))
-            m_col2.metric("Gesamtdauer des Stücks", f"{midi_data.get_end_time():.2f} Sek.")
-            m_col3.metric("Genutzter Tonumfang", f"{df['Note'].nunique()} verschiedene Töne")
+            m_col1.metric("Generated notes (events)", len(df))
+            m_col2.metric("Total duration of the piece", f"{midi_data.get_end_time():.2f} Sek.")
+            m_col3.metric("Range of notes used", f"{df['Note'].nunique()} various tones")
             
         else:
-            st.info("Der Text enthielt keine musikalisch verwertbaren Zeichen aus dem definierten Alphabet.")
+            st.info("The text contained no musically usable characters from the defined alphabet.")
