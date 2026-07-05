@@ -1,3 +1,5 @@
 streamlit
 mido
 pretty_midi
+plotly
+pandas
