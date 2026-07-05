@@ -189,9 +189,9 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
             df = pd.DataFrame(notes_list)
             df = df.sort_values(by="Midi Pitch")
             
-            fig = px.bar(
+         fig = px.bar(
                 df,
-                x="Time (s)",
+                x="Duration (s)", # <--- SO IST ES KORREKT
                 y="Note",
                 base="Start (s)",
                 orientation="h",
