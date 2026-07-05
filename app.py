@@ -131,47 +131,47 @@ class ETSCS_Total_System:
 # STREAMLIT UI & ADEQUATE VISUALISIERUNG
 # =====================================================================
 
-st.set_page_config(page_title="Felix Ermacora Codera Scale System", layout="wide")
+st.markdown("<h1 style='text-align: left;'>E-CODERA SYSTEM<br><span style='font-size: 20px; font-weight: normal;'>Developed by Felix Ermacora</span></h1>", unsafe_allow_html=True)
 
-st.title("Felix Ermacora: Codera Scale System")
-st.write("Transformiert linguistische Strukturen basierend auf eurythmischen Gesetzmäßigkeiten in polyphone MIDI-Daten.")
+st.title("E Codera System")
+st.write("Converts linguistic structures into polyphonic MIDI data using algorithmic modeling.")
 
-st.sidebar.header("System Parameter")
-base_octave = st.sidebar.slider("Basis-Oktave", min_value=1, max_value=7, value=4)
-note_duration = st.sidebar.slider("Standard Notendauer (Sekunden)", min_value=0.05, max_value=1.0, value=0.25, step=0.01)
+st.sidebar.header("System Parameters")
+base_octave = st.sidebar.slider("Reference Octave", min_value=1, max_value=7, value=4)
+note_duration = st.sidebar.slider("Standard Element Duration (Seconds)", min_value=0.05, max_value=1.0, value=0.25, step=0.01)
 
-default_text = "Die Schöpfung: Siebentagewerk. \n\nIm Anfang schuf Gott den Himmel und die Erde. Licht!"
-user_input = st.text_area("Eingabetext für die generative Synthese:", value=default_text, height=180)
+default_text = "Die Schöpfung: Siebentagewerk / Im Anfang schuf Gott den Himmel und die Erde Und die Erde war wüst und leer // The Creation: Seven-Day Work. In the beginning, God created the heaven and the earth. And the earth was waste and void. // Hē Ktisis: Hē tōn heptā hēmerōn ergasia. En archēi epoiēsen ho Theos ton ouranon kai tēn gēn. Hē de gē ēn aoratos kai akataskeuastos."
+user_input = st.text_area("Input text for generative synthesis:", value=default_text, height=180)
 
-if st.button("MIDI-Struktur generieren & analysieren", type="primary"):
+if st.button("Generate & analyze MIDI architecture", type="primary"):
     if user_input.strip() == "":
-        st.warning("Bitte gib zuerst einen Text ein.")
+        st.warning("Please input your text first.")
     else:
         system = ETSCS_Total_System(user_input, base_octave=base_octave, note_duration=note_duration)
         midi_data = system.process()
         
-        filename = "Felix_Ermacora_Output.mid"
+        filename = "E_Codera_System_Felix_Ermacora"
         midi_data.write(filename)
         
-        st.success("MIDI-Architektur erfolgreich berechnet!")
+        st.success("MIDI architecture successfully calculated!")
         
         # --- DOWNLOAD BEREICH ---
         with open(filename, "rb") as f:
             st.download_button(
-                label="📥 Download MIDI-Datei",
+                label="📥 Download MIDI Architecture",
                 data=f,
                 file_name=filename,
                 mime="audio/midi",
                 use_container_width=True
             )
             
-        st.info("🎵 **Hinweis zur Wiedergabe:** Webbrowser können rohe MIDI-Dateien leider nicht direkt abspielen. Bitte lade die MIDI-Datei herunter und lade sie in deine DAW (z.B. Ableton Live oder AUM auf dem iPad), um sie mit deinen eigenen Synthesizern wiederzugeben.")
+        st.info("🎵 **🎵 Playback Notice: Web browsers cannot natively playback raw MIDI matrix data. Please download the file and map it into your digital audio workspace (e.g., Ableton Live 12 or your AUM iPad matrix) to sculpt it with your custom synthesizer configurations and physical hardware chains.")
             
         # =====================================================================
         # VISUALISIERUNG: Interaktives MIDI Piano Roll
         # =====================================================================
         st.write("---")
-        st.subheader("📊 Strukturelle Visualisierung (Linguistisches Frequenz-Muster)")
+        st.subheader("📊 Structural Visualization (Linguistic Frequency Pattern")
         
         notes_list = []
         for instrument in midi_data.instruments:
