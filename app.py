@@ -150,7 +150,7 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
         system = ETSCS_Total_System(user_input, base_octave=base_octave, note_duration=note_duration)
         midi_data = system.process()
         
-        filename = "E_Codera_System_Felix_Ermacora"
+        filename = ""E_Codera_System_Felix_Ermacora.mid"
         midi_data.write(filename)
         
         st.success("MIDI architecture successfully calculated!")
