@@ -150,7 +150,7 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
         system = ETSCS_Total_System(user_input, base_octave=base_octave, note_duration=note_duration)
         midi_data = system.process()
         
-        filename = ""E_Codera_System_Felix_Ermacora.mid"
+        filename = "E_Codera_System_Felix_Ermacora.mid" # <--- HIER WAR DER FEHLER: .mid gefehlt
         midi_data.write(filename)
         
         st.success("MIDI architecture successfully calculated!")
@@ -165,13 +165,13 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
                 use_container_width=True
             )
             
-        st.info("🎵 **🎵 Playback Notice: Web browsers cannot natively playback raw MIDI matrix data. Please download the file and map it into your digital audio workspace (e.g., Ableton Live 12 or your AUM iPad matrix) to sculpt it with your custom synthesizer configurations and physical hardware chains.")
+        st.info("🎵 **Playback Notice:** Web browsers cannot natively playback raw MIDI matrix data. Please download the file and map it into your digital audio workspace (e.g., Ableton Live 12 or your AUM iPad matrix) to sculpt it with your custom synthesizer configurations and physical hardware chains.")
             
         # =====================================================================
         # VISUALISIERUNG: Interaktives MIDI Piano Roll
         # =====================================================================
         st.write("---")
-        st.subheader("📊 Structural Visualization (Linguistic Frequency Pattern")
+        st.subheader("📊 Structural Visualization (Linguistic Frequency Pattern)")
         
         notes_list = []
         for instrument in midi_data.instruments:
@@ -190,7 +190,7 @@ if st.button("Generate & analyze MIDI architecture", type="primary"):
             df = df.sort_values(by="Midi Pitch")
             fig = px.bar(
                 df,
-                x="Duration (s)", # <--- SO IST ES KORREKT
+                x="Duration (s)",
                 y="Note",
                 base="Start (s)",
                 orientation="h",
